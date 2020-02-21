@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"strings"
 
 	"github.com/caarlos0/httperr"
@@ -40,12 +39,6 @@ func main() {
 	var handler = http.NewServeMux()
 
 	handler.Handle("/", httperr.NewF(func(w http.ResponseWriter, r *http.Request) error {
-		bts, err := httputil.DumpRequest(r, false)
-		if err != nil {
-			return err
-		}
-		log.Println(string(bts))
-
 		var path = strings.Replace(r.URL.EscapedPath(), "/", "", 1)
 		log.Println(path)
 
