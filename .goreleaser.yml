@@ -20,5 +20,5 @@ dockers:
   - "--label=org.label-schema.version={{.Version}}"
   - "--label=org.label-schema.name={{.ProjectName}}"
   image_templates:
-  - "gcr.io/labs-ops/storage-auth-proxy:latest"
-  - "gcr.io/labs-ops/storage-auth-proxy:{{ .Tag }}"
+  - "totvslabs/storage-auth-proxy:latest"
+  - "totvslabs/storage-auth-proxy:{{ .Tag }}"
