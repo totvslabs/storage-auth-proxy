@@ -7,7 +7,11 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/caarlos0/httperr"
 	"gocloud.dev/blob"
@@ -59,8 +63,30 @@ func main() {
 		return nil
 	}))
 
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	srv := &http.Server{
+		Addr:    listen,
+		Handler: handler,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
 	log.Println("listening on", listen)
-	http.ListenAndServe(listen, handler)
+
+	<-done
+	log.Println("stopping")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("couldn't stop server: %+v", err)
+	}
 }
 
 type stringSlice []string
