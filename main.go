@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/caarlos0/httperr"
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"gocloud.dev/blob"
 
 	_ "gocloud.dev/blob/azureblob"
@@ -40,11 +42,13 @@ func main() {
 	}
 	defer bucket.Close()
 
-	var handler = http.NewServeMux()
-
-	handler.Handle("/", httperr.NewF(func(w http.ResponseWriter, r *http.Request) error {
-		var path = strings.Replace(r.URL.EscapedPath(), "/", "", 1)
-		log.Println(path)
+	var r = chi.NewRouter()
+	r.Use(middleware.Logger, middleware.Recoverer)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "ok")
+	})
+	r.Get("/{asset}", httperr.NewF(func(w http.ResponseWriter, r *http.Request) error {
+		var path = chi.URLParam(r, "asset")
 
 		user, pwd, ok := r.BasicAuth()
 		if !(ok && isAuthorized(user+":"+pwd)) {
@@ -54,21 +58,21 @@ func main() {
 
 		reader, err := bucket.NewReader(ctx, path, nil)
 		if err != nil {
-			return httperr.Wrap(err, http.StatusBadRequest)
+			return httperr.Wrap(err, http.StatusNotFound)
 		}
 		defer reader.Close()
 		if _, err := io.Copy(w, reader); err != nil {
 			return httperr.Wrap(err, http.StatusInternalServerError)
 		}
 		return nil
-	}))
+	}).ServeHTTP)
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	srv := &http.Server{
 		Addr:    listen,
-		Handler: handler,
+		Handler: r,
 	}
 
 	go func() {
